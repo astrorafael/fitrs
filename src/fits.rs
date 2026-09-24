@@ -631,6 +631,45 @@ impl Hdu {
         })
     }
 
+    fn read_bitpix16_data(&self) -> FitsData {
+        let bzero = self.value_as_integer_number("BZERO");
+        let _bscale = self.value_as_integer_number("BSCALE");
+        let blank = self.value_as_integer_number("BLANK");
+        match (blank, bzero) {
+            (Some(_blank), Some(_bzero)) => {
+                todo!("not yet implemented");
+            }
+            (None, Some(bzero)) => {
+                return FitsData::IntegersU16(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0u16; len];
+                    file.read_u16_into::<BigEndian>(&mut buf)
+                        .expect("Read array");
+                    buf.into_iter()
+                        .map(|n| n.wrapping_add(bzero as u16))
+                        .collect()
+                }))
+            }
+            (Some(blank), None) => {
+                return FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0i16; len];
+                    file.read_i16_into::<BigEndian>(&mut buf)
+                        .expect("Read array");
+                    let blank = blank as i16;
+                    buf.into_iter()
+                        .map(|n| if n == blank { None } else { Some(i32::from(n)) })
+                        .collect()
+                }))
+            }
+            (None, None) => {
+                return FitsData::IntegersI16(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0i16; len];
+                    file.read_i16_into::<BigEndian>(&mut buf)
+                        .expect("Read array");
+                    buf
+                }))
+            }
+        }
+    }
     /// Get data array stored in the [`Hdu`].
     pub fn read_data(&self) -> FitsData {
         let bitpix = self
@@ -643,25 +682,9 @@ impl Hdu {
                 buf.into_iter().map(|n| n as char).collect()
             })),
             16 => {
+                self.read_bitpix16_data()
+
                 /* BEGIN TROZO QUE HAY QUE EXPANDIR */
-                if let Some(blank) = self.value_as_integer_number("BLANK") {
-                    FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
-                        let mut buf = vec![0i16; len];
-                        file.read_i16_into::<BigEndian>(&mut buf)
-                            .expect("Read array");
-                        let blank = blank as i16;
-                        buf.into_iter()
-                            .map(|n| if n == blank { None } else { Some(i32::from(n)) })
-                            .collect()
-                    }))
-                } else {
-                    FitsData::IntegersI16(self.inner_read_data_force(|file, len| {
-                        let mut buf = vec![0i16; len];
-                        file.read_i16_into::<BigEndian>(&mut buf)
-                            .expect("Read array");
-                        buf
-                    }))
-                }
 
                 /*
                 let blank = self.value_as_integer_number("BLANK");
