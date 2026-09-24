@@ -696,7 +696,9 @@ impl Hdu {
     }
 
     fn read_16bit_data(&self) -> FitsData {
-        let bzero = self.value_as_integer_number("BZERO");
+        let bzero1 = self.value_as_integer_number("BZERO");
+        let bzero2 = self.value_as_floating_number("BZERO");
+        let bzero = bzero2.map(|x| x as u32).or(bzero1.map(|x| x as u32));
         let blank = self.value_as_integer_number("BLANK");
         match (blank, bzero) {
             (Some(blank), Some(bzero)) => {
@@ -750,7 +752,9 @@ impl Hdu {
     }
 
     fn read_32bit_data(&self) -> FitsData {
-        let bzero = self.value_as_integer_number("BZERO");
+        let bzero1 = self.value_as_integer_number("BZERO");
+        let bzero2 = self.value_as_floating_number("BZERO");
+        let bzero = bzero2.map(|x| x as u32).or(bzero1.map(|x| x as u32));
         let blank = self.value_as_integer_number("BLANK");
         match (blank, bzero) {
             (Some(blank), Some(bzero)) => {
