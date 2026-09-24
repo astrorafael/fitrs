@@ -643,6 +643,27 @@ impl Hdu {
                 buf.into_iter().map(|n| n as char).collect()
             })),
             16 => {
+                /* BEGIN TROZO QUE HAY QUE EXPANDIR */
+                if let Some(blank) = self.value_as_integer_number("BLANK") {
+                    FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
+                        let mut buf = vec![0i16; len];
+                        file.read_i16_into::<BigEndian>(&mut buf)
+                            .expect("Read array");
+                        let blank = blank as i16;
+                        buf.into_iter()
+                            .map(|n| if n == blank { None } else { Some(i32::from(n)) })
+                            .collect()
+                    }))
+                } else {
+                    FitsData::IntegersI16(self.inner_read_data_force(|file, len| {
+                        let mut buf = vec![0i16; len];
+                        file.read_i16_into::<BigEndian>(&mut buf)
+                            .expect("Read array");
+                        buf
+                    }))
+                }
+
+                /*
                 let blank = self.value_as_integer_number("BLANK");
                 FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
                     let mut buf = vec![0i16; len];
@@ -657,6 +678,8 @@ impl Hdu {
                         buf.into_iter().map(|n| Some(i32::from(n))).collect()
                     }
                 }))
+                */
+                /* END TROZO QUE HAY QUE EXPANDIR */
             }
             32 => {
                 let blank = self.value_as_integer_number("BLANK");
