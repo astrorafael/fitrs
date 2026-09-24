@@ -215,17 +215,14 @@ impl FitsData {
     fn raw(&self) -> Vec<u8> {
         match self {
             FitsData::Characters(chars) => chars.raw(),
-
             FitsData::IntegersI16(arr) => arr.raw(),
             FitsData::OptIntegersI16(arr) => arr.raw(),
             FitsData::IntegersU16(arr) => arr.raw(),
             FitsData::OptIntegersU16(arr) => arr.raw(),
-
             FitsData::IntegersI32(arr) => arr.raw(),
             FitsData::OptIntegersI32(arr) => arr.raw(),
             FitsData::IntegersU32(arr) => arr.raw(),
             FitsData::OptIntegersU32(arr) => arr.raw(),
-
             FitsData::FloatingPoint32(arr) => arr.raw(),
             FitsData::FloatingPoint64(arr) => arr.raw(),
         }
