@@ -48,9 +48,9 @@ impl FitsDataType for u16 {
 
 impl FitsDataType for i32 {
     fn new_fits_array(shape: &[usize], data: Vec<i32>) -> FitsData {
-        FitsData::OptIntegersI32(FitsDataArray {
+        FitsData::IntegersI32(FitsDataArray {
             shape: Vec::from(shape),
-            data: data.into_iter().map(Some).collect(),
+            data: data,
         })
     }
 
@@ -61,9 +61,9 @@ impl FitsDataType for i32 {
 
 impl FitsDataType for u32 {
     fn new_fits_array(shape: &[usize], data: Vec<u32>) -> FitsData {
-        FitsData::OptIntegersU32(FitsDataArray {
+        FitsData::IntegersU32(FitsDataArray {
             shape: Vec::from(shape),
-            data: data.into_iter().map(Some).collect(),
+            data: data,
         })
     }
 
