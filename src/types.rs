@@ -1,8 +1,8 @@
 use fits::{FitsData, FitsDataArray};
 
 // Use to fit unsigned integers  into signed integer by shifting the value by this amount
-const BZERO_U16: u16 = 32768;
-const BZERO_U32: u32 = 2147483648;
+pub(crate) const BZERO_U16: f64 = 32768.0;
+pub(crate) const BZERO_U32: f64 = 2147483648.0;
 
 /// A type that can be stored in a FITS data array implements this trait.
 pub trait FitsDataType: Sized {
@@ -39,12 +39,10 @@ impl FitsDataType for i16 {
 
 impl FitsDataType for u16 {
     fn new_fits_array(shape: &[usize], data: Vec<u16>) -> FitsData {
+        let bzero = BZERO_U16 as u16;
         FitsData::IntegersU16(FitsDataArray {
             shape: Vec::from(shape),
-            data: data
-                .into_iter()
-                .map(|px| px.wrapping_add(BZERO_U16))
-                .collect(),
+            data: data.into_iter().map(|px| px.wrapping_add(bzero)).collect(),
         })
     }
 
@@ -68,12 +66,10 @@ impl FitsDataType for i32 {
 
 impl FitsDataType for u32 {
     fn new_fits_array(shape: &[usize], data: Vec<u32>) -> FitsData {
+        let bzero = BZERO_U32 as u32;
         FitsData::IntegersU32(FitsDataArray {
             shape: Vec::from(shape),
-            data: data
-                .into_iter()
-                .map(|px| px.wrapping_add(BZERO_U32))
-                .collect(),
+            data: data.into_iter().map(|px| px.wrapping_add(bzero)).collect(),
         })
     }
 

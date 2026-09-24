@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use types::FitsDataType;
+use types::{FitsDataType, BZERO_U16, BZERO_U32};
 
 type FileRc = Arc<Mutex<File>>;
 
@@ -231,8 +231,9 @@ impl FitsData {
 
 type HeaderKeyWord = String;
 
+// pub was needed to add a method in the FitsDataType trait.
 #[derive(Debug, Clone)]
-struct HeaderValueComment {
+pub struct HeaderValueComment {
     value: Option<HeaderValue>,
     comment: Option<HeaderComment>,
 }
@@ -703,13 +704,14 @@ impl Hdu {
                     let mut buf = vec![0u16; len];
                     file.read_u16_into::<BigEndian>(&mut buf)
                         .expect("Read array 16-bit");
-                    let blank = blank as u16;
+                    let bzero = bzero as u16;
+                    let blank = blank as u16 + bzero;
                     buf.into_iter()
                         .map(|n| {
                             if n == blank {
                                 None
                             } else {
-                                Some(n.wrapping_add(bzero as u16))
+                                Some(n.wrapping_add(bzero))
                             }
                         })
                         .collect()
@@ -756,13 +758,14 @@ impl Hdu {
                     let mut buf = vec![0u32; len];
                     file.read_u32_into::<BigEndian>(&mut buf)
                         .expect("Read array 32-bit");
-                    let blank = blank as u32;
+                    let bzero = bzero as u32;
+                    let blank = blank as u32 + bzero;
                     buf.into_iter()
                         .map(|n| {
                             if n == blank {
                                 None
                             } else {
-                                Some(n.wrapping_add(bzero as u32))
+                                Some(n.wrapping_add(bzero))
                             }
                         })
                         .collect()
