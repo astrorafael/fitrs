@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use types::{FitsDataType, BZERO_U16, BZERO_U32};
+use types::FitsDataType;
 
 type FileRc = Arc<Mutex<File>>;
 
@@ -924,7 +924,7 @@ impl Hdu {
     /// The HDU must be added to a [`Fits`] object to be written persistently
     /// to disk.
     pub fn new<T: FitsDataType>(shape: &[usize], data: Vec<T>) -> Hdu {
-        let mut header = Vec::with_capacity(4 + shape.len());
+        let mut header = Vec::with_capacity(6 + shape.len());
         header.push((
             "SIMPLE".to_owned(),
             Some(HeaderValueComment {
@@ -957,7 +957,22 @@ impl Hdu {
                 }),
             ));
         }
-
+        if let Some(bzero) = T::bzero() {
+            header.push((
+                "BSCALE".to_owned(), // BSCALE is defined as folating point by FTIS standard
+                Some(HeaderValueComment {
+                    value: Some(HeaderValue::RealFloatingNumber(1.0)),
+                    comment: None,
+                }),
+            ));
+            header.push((
+                "BZERO".to_owned(),
+                Some(HeaderValueComment {
+                    value: Some(HeaderValue::RealFloatingNumber(bzero)),
+                    comment: None,
+                }),
+            ));
+        }
         header.push(("END".to_owned(), None));
 
         Hdu {

@@ -1,14 +1,18 @@
 use fits::{FitsData, FitsDataArray};
 
 // Use to fit unsigned integers  into signed integer by shifting the value by this amount
-pub(crate) const BZERO_U16: f64 = 32768.0;
-pub(crate) const BZERO_U32: f64 = 2147483648.0;
+const BZERO_U16: f64 = 32768.0;
+const BZERO_U32: f64 = 2147483648.0;
 
 /// A type that can be stored in a FITS data array implements this trait.
 pub trait FitsDataType: Sized {
     fn new_fits_array(shape: &[usize], data: Vec<Self>) -> FitsData;
 
     fn bitpix() -> i32;
+
+    fn bzero() -> Option<f64> {
+        None
+    }
 }
 
 impl FitsDataType for char {
@@ -49,6 +53,10 @@ impl FitsDataType for u16 {
     fn bitpix() -> i32 {
         16
     }
+
+    fn bzero() -> Option<f64> {
+        Some(BZERO_U16)
+    }
 }
 
 impl FitsDataType for i32 {
@@ -75,6 +83,10 @@ impl FitsDataType for u32 {
 
     fn bitpix() -> i32 {
         32
+    }
+
+    fn bzero() -> Option<f64> {
+        Some(BZERO_U32)
     }
 }
 
