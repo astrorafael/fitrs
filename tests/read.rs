@@ -46,7 +46,7 @@ fn make_primary_hdu_array() {
     let primary_hdu = iter.next().unwrap();
     let data = primary_hdu.read_data();
     match data {
-        FitsData::IntegersI32(array) => {
+        FitsData::OptIntegersI32(array) => {
             assert_eq!(array.shape, vec![10, 2]);
             assert_eq!(
                 array.data,
@@ -74,7 +74,7 @@ fn make_primary_hdu_array() {
                 ]
             );
         }
-        _ => panic!("Should be IntegersI32!"),
+        _ => panic!("Should be OptIntegersI32!"),
     }
 }
 

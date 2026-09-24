@@ -56,8 +56,10 @@ pub struct Hdu {
 #[derive(Debug, Clone)]
 pub enum FitsData {
     Characters(FitsDataArray<char>),
-    IntegersI32(FitsDataArray<Option<i32>>),
-    IntegersU32(FitsDataArray<Option<u32>>),
+    IntegersI16(FitsDataArray<i16>),
+    IntegersU16(FitsDataArray<u16>),
+    OptIntegersI32(FitsDataArray<Option<i32>>),
+    OptIntegersU32(FitsDataArray<Option<u32>>),
     FloatingPoint32(FitsDataArray<f32>),
     FloatingPoint64(FitsDataArray<f64>),
 }
@@ -117,6 +119,26 @@ impl FitsDataArray<Option<u32>> {
     }
 }
 
+impl FitsDataArray<i16> {
+    fn raw(&self) -> Vec<u8> {
+        let mut data = Vec::with_capacity(2 * self.data.len());
+        for n in &self.data {
+            data.write_i16::<BigEndian>(*n).unwrap();
+        }
+        data
+    }
+}
+
+impl FitsDataArray<u16> {
+    fn raw(&self) -> Vec<u8> {
+        let mut data = Vec::with_capacity(2 * self.data.len());
+        for n in &self.data {
+            data.write_u16::<BigEndian>(*n).unwrap();
+        }
+        data
+    }
+}
+
 impl FitsDataArray<f32> {
     fn raw(&self) -> Vec<u8> {
         let mut data = Vec::with_capacity(4 * self.data.len());
@@ -141,8 +163,10 @@ impl FitsData {
     fn raw(&self) -> Vec<u8> {
         match self {
             FitsData::Characters(chars) => chars.raw(),
-            FitsData::IntegersI32(arr) => arr.raw(),
-            FitsData::IntegersU32(arr) => arr.raw(),
+            FitsData::IntegersI16(arr) => arr.raw(),
+            FitsData::IntegersU16(arr) => arr.raw(),
+            FitsData::OptIntegersI32(arr) => arr.raw(),
+            FitsData::OptIntegersU32(arr) => arr.raw(),
             FitsData::FloatingPoint32(arr) => arr.raw(),
             FitsData::FloatingPoint64(arr) => arr.raw(),
         }
@@ -186,7 +210,7 @@ impl Fits {
     }
 
     /// Iterate over references to [`Hdu`]s.
-    pub fn iter(&self) -> FitsIter {
+    pub fn iter(&self) -> FitsIter<'_> {
         FitsIter {
             fits: self,
             position: 0,
@@ -332,10 +356,10 @@ fn tell(file: &mut File) -> u64 {
 }
 
 trait MovableCursor {
-    fn file(&self) -> MutexGuard<File>;
+    fn file(&self) -> MutexGuard<'_, File>;
     fn position(&self) -> u64;
 
-    fn set_position(&self) -> MutexGuard<File> {
+    fn set_position(&self) -> MutexGuard<'_, File> {
         let position = self.position();
         let mut lock = self.file();
         lock.seek(SeekFrom::Start(position))
@@ -345,7 +369,7 @@ trait MovableCursor {
 }
 
 impl MovableCursor for FitsIntoIter {
-    fn file(&self) -> MutexGuard<File> {
+    fn file(&self) -> MutexGuard<'_, File> {
         self.fits.file.lock().expect("Get lock")
     }
     fn position(&self) -> u64 {
@@ -354,7 +378,7 @@ impl MovableCursor for FitsIntoIter {
 }
 
 impl<'f> MovableCursor for FitsIter<'f> {
-    fn file(&self) -> MutexGuard<File> {
+    fn file(&self) -> MutexGuard<'_, File> {
         self.fits.file.lock().expect("Get lock")
     }
     fn position(&self) -> u64 {
@@ -620,7 +644,7 @@ impl Hdu {
             })),
             16 => {
                 let blank = self.value_as_integer_number("BLANK");
-                FitsData::IntegersI32(self.inner_read_data_force(|file, len| {
+                FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
                     let mut buf = vec![0i16; len];
                     file.read_i16_into::<BigEndian>(&mut buf)
                         .expect("Read array");
@@ -636,7 +660,7 @@ impl Hdu {
             }
             32 => {
                 let blank = self.value_as_integer_number("BLANK");
-                FitsData::IntegersI32(self.inner_read_data_force(|file, len| {
+                FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
                     let mut buf = vec![0i32; len];
                     file.read_i32_into::<BigEndian>(&mut buf)
                         .expect("Read array");
@@ -686,7 +710,7 @@ pub struct HduIter<'a> {
 
 /// # Iterate over HeaderValue in HDU
 impl Hdu {
-    pub fn iter(&self) -> HduIter {
+    pub fn iter(&self) -> HduIter<'_> {
         HduIter {
             iter: self.header.iter(),
         }

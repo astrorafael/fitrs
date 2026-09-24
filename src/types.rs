@@ -20,22 +20,35 @@ impl FitsDataType for char {
     }
 }
 
-impl FitsDataType for i32 {
-    fn new_fits_array(shape: &[usize], data: Vec<i32>) -> FitsData {
-        FitsData::IntegersI32(FitsDataArray {
+impl FitsDataType for i16 {
+    fn new_fits_array(shape: &[usize], data: Vec<i16>) -> FitsData {
+        FitsData::IntegersI16(FitsDataArray {
             shape: Vec::from(shape),
-            data: data.into_iter().map(Some).collect(),
+            data: data,
         })
     }
 
     fn bitpix() -> i32 {
-        32
+        16
+    }
+}
+
+impl FitsDataType for u16 {
+    fn new_fits_array(shape: &[usize], data: Vec<u16>) -> FitsData {
+        FitsData::IntegersU16(FitsDataArray {
+            shape: Vec::from(shape),
+            data: data,
+        })
+    }
+
+    fn bitpix() -> i32 {
+        16
     }
 }
 
 impl FitsDataType for u32 {
     fn new_fits_array(shape: &[usize], data: Vec<u32>) -> FitsData {
-        FitsData::IntegersU32(FitsDataArray {
+        FitsData::OptIntegersU32(FitsDataArray {
             shape: Vec::from(shape),
             data: data.into_iter().map(Some).collect(),
         })
@@ -45,6 +58,7 @@ impl FitsDataType for u32 {
         32
     }
 }
+
 impl FitsDataType for f32 {
     fn new_fits_array(shape: &[usize], data: Vec<f32>) -> FitsData {
         FitsData::FloatingPoint32(FitsDataArray {
@@ -72,7 +86,7 @@ impl FitsDataType for f64 {
 
 impl FitsDataType for () {
     fn new_fits_array(_shape: &[usize], _data: Vec<()>) -> FitsData {
-        FitsData::IntegersU32(FitsDataArray {
+        FitsData::OptIntegersU32(FitsDataArray {
             shape: vec![],
             data: vec![],
         })
