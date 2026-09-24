@@ -57,8 +57,12 @@ pub struct Hdu {
 pub enum FitsData {
     Characters(FitsDataArray<char>),
     IntegersI16(FitsDataArray<i16>),
+    OptIntegersI16(FitsDataArray<Option<i16>>),
     IntegersU16(FitsDataArray<u16>),
+    OptIntegersU16(FitsDataArray<Option<u16>>),
+    IntegersI32(FitsDataArray<i32>),
     OptIntegersI32(FitsDataArray<Option<i32>>),
+    IntegersU32(FitsDataArray<u32>),
     OptIntegersU32(FitsDataArray<Option<u32>>),
     FloatingPoint32(FitsDataArray<f32>),
     FloatingPoint64(FitsDataArray<f64>),
@@ -88,6 +92,34 @@ impl<T> FitsDataArray<T> {
 impl FitsDataArray<char> {
     fn raw(&self) -> Vec<u8> {
         unimplemented!("Cannot write Characters")
+    }
+}
+
+impl FitsDataArray<Option<i16>> {
+    fn raw(&self) -> Vec<u8> {
+        let mut data = Vec::with_capacity(2 * self.data.len());
+        for n in &self.data {
+            if let Some(n) = n {
+                data.write_i16::<BigEndian>(*n).unwrap();
+            } else {
+                unimplemented!("Missing value not implemented for 16-bit integer arrays!");
+            }
+        }
+        data
+    }
+}
+
+impl FitsDataArray<Option<u16>> {
+    fn raw(&self) -> Vec<u8> {
+        let mut data = Vec::with_capacity(2 * self.data.len());
+        for n in &self.data {
+            if let Some(n) = n {
+                data.write_u16::<BigEndian>(*n).unwrap();
+            } else {
+                unimplemented!("Missing value not implemented for unsigned 16-bit integer arrays!");
+            }
+        }
+        data
     }
 }
 
@@ -139,6 +171,26 @@ impl FitsDataArray<u16> {
     }
 }
 
+impl FitsDataArray<i32> {
+    fn raw(&self) -> Vec<u8> {
+        let mut data = Vec::with_capacity(4 * self.data.len());
+        for n in &self.data {
+            data.write_i32::<BigEndian>(*n).unwrap();
+        }
+        data
+    }
+}
+
+impl FitsDataArray<u32> {
+    fn raw(&self) -> Vec<u8> {
+        let mut data = Vec::with_capacity(4 * self.data.len());
+        for n in &self.data {
+            data.write_u32::<BigEndian>(*n).unwrap();
+        }
+        data
+    }
+}
+
 impl FitsDataArray<f32> {
     fn raw(&self) -> Vec<u8> {
         let mut data = Vec::with_capacity(4 * self.data.len());
@@ -163,10 +215,17 @@ impl FitsData {
     fn raw(&self) -> Vec<u8> {
         match self {
             FitsData::Characters(chars) => chars.raw(),
+
             FitsData::IntegersI16(arr) => arr.raw(),
+            FitsData::OptIntegersI16(arr) => arr.raw(),
             FitsData::IntegersU16(arr) => arr.raw(),
+            FitsData::OptIntegersU16(arr) => arr.raw(),
+
+            FitsData::IntegersI32(arr) => arr.raw(),
             FitsData::OptIntegersI32(arr) => arr.raw(),
+            FitsData::IntegersU32(arr) => arr.raw(),
             FitsData::OptIntegersU32(arr) => arr.raw(),
+
             FitsData::FloatingPoint32(arr) => arr.raw(),
             FitsData::FloatingPoint64(arr) => arr.raw(),
         }
@@ -586,6 +645,13 @@ impl Hdu {
         None
     }
 
+    fn value_as_floating_number(&self, key: &str) -> Option<f64> {
+        self.value(key).and_then(|val| match *val {
+            HeaderValue::RealFloatingNumber(n) => Some(n),
+            _ => None,
+        })
+    }
+
     fn value_as_integer_number(&self, key: &str) -> Option<i32> {
         self.value(key).and_then(|val| match *val {
             HeaderValue::IntegerNumber(n) => Some(n),
@@ -631,32 +697,45 @@ impl Hdu {
         })
     }
 
-    fn read_bitpix16_data(&self) -> FitsData {
+    fn read_16bit_data(&self) -> FitsData {
         let bzero = self.value_as_integer_number("BZERO");
-        let _bscale = self.value_as_integer_number("BSCALE");
         let blank = self.value_as_integer_number("BLANK");
         match (blank, bzero) {
-            (Some(_blank), Some(_bzero)) => {
-                todo!("not yet implemented");
+            (Some(blank), Some(bzero)) => {
+                return FitsData::OptIntegersU16(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0u16; len];
+                    file.read_u16_into::<BigEndian>(&mut buf)
+                        .expect("Read array 16-bit");
+                    let blank = blank as u16;
+                    buf.into_iter()
+                        .map(|n| {
+                            if n == blank {
+                                None
+                            } else {
+                                Some(n.wrapping_add(bzero as u16))
+                            }
+                        })
+                        .collect()
+                }))
             }
             (None, Some(bzero)) => {
                 return FitsData::IntegersU16(self.inner_read_data_force(|file, len| {
                     let mut buf = vec![0u16; len];
                     file.read_u16_into::<BigEndian>(&mut buf)
-                        .expect("Read array");
+                        .expect("Read array 16-bit");
                     buf.into_iter()
                         .map(|n| n.wrapping_add(bzero as u16))
                         .collect()
                 }))
             }
             (Some(blank), None) => {
-                return FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
+                return FitsData::OptIntegersI16(self.inner_read_data_force(|file, len| {
                     let mut buf = vec![0i16; len];
                     file.read_i16_into::<BigEndian>(&mut buf)
-                        .expect("Read array");
+                        .expect("Read array 16-bit");
                     let blank = blank as i16;
                     buf.into_iter()
-                        .map(|n| if n == blank { None } else { Some(i32::from(n)) })
+                        .map(|n| if n == blank { None } else { Some(n) })
                         .collect()
                 }))
             }
@@ -664,10 +743,104 @@ impl Hdu {
                 return FitsData::IntegersI16(self.inner_read_data_force(|file, len| {
                     let mut buf = vec![0i16; len];
                     file.read_i16_into::<BigEndian>(&mut buf)
-                        .expect("Read array");
+                        .expect("Read array 16-bit");
                     buf
                 }))
             }
+        }
+    }
+
+    fn read_32bit_data(&self) -> FitsData {
+        let bzero = self.value_as_integer_number("BZERO");
+        let blank = self.value_as_integer_number("BLANK");
+        match (blank, bzero) {
+            (Some(blank), Some(bzero)) => {
+                return FitsData::OptIntegersU32(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0u32; len];
+                    file.read_u32_into::<BigEndian>(&mut buf)
+                        .expect("Read array 32-bit");
+                    let blank = blank as u32;
+                    buf.into_iter()
+                        .map(|n| {
+                            if n == blank {
+                                None
+                            } else {
+                                Some(n.wrapping_add(bzero as u32))
+                            }
+                        })
+                        .collect()
+                }))
+            }
+            (None, Some(bzero)) => {
+                return FitsData::IntegersU32(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0u32; len];
+                    file.read_u32_into::<BigEndian>(&mut buf)
+                        .expect("Read array 32-bit");
+                    buf.into_iter()
+                        .map(|n| n.wrapping_add(bzero as u32))
+                        .collect()
+                }))
+            }
+            (Some(blank), None) => {
+                return FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0i32; len];
+                    file.read_i32_into::<BigEndian>(&mut buf)
+                        .expect("Read array 32-bit");
+                    let blank = blank as i32;
+                    buf.into_iter()
+                        .map(|n| if n == blank { None } else { Some(n) })
+                        .collect()
+                }))
+            }
+            (None, None) => {
+                return FitsData::IntegersI32(self.inner_read_data_force(|file, len| {
+                    let mut buf = vec![0i32; len];
+                    file.read_i32_into::<BigEndian>(&mut buf)
+                        .expect("Read array 32-bit");
+                    buf
+                }))
+            }
+        }
+    }
+
+    fn read_f32_data(&self) -> FitsData {
+        let bscale = self.value_as_floating_number("BSCALE").unwrap_or(1.0) as f32;
+        let bzero = self.value_as_floating_number("BZERO");
+        if let Some(bzero) = bzero {
+            return FitsData::FloatingPoint32(self.inner_read_data_force(|file, len| {
+                let mut buf = vec![0f32; len];
+                file.read_f32_into::<BigEndian>(&mut buf)
+                    .expect("Read array f32");
+                let bzero = bzero as f32;
+                buf.into_iter().map(|f| bscale * f + bzero).collect()
+            }));
+        } else {
+            return FitsData::FloatingPoint32(self.inner_read_data_force(|file, len| {
+                let mut buf = vec![0f32; len];
+                file.read_f32_into::<BigEndian>(&mut buf)
+                    .expect("Read array f32");
+                buf
+            }));
+        }
+    }
+
+    fn read_f64_data(&self) -> FitsData {
+        let bscale = self.value_as_floating_number("BSCALE").unwrap_or(1.0);
+        let bzero = self.value_as_floating_number("BZERO");
+        if let Some(bzero) = bzero {
+            return FitsData::FloatingPoint64(self.inner_read_data_force(|file, len| {
+                let mut buf = vec![0f64; len];
+                file.read_f64_into::<BigEndian>(&mut buf)
+                    .expect("Read array f64");
+                buf.into_iter().map(|f| bscale * f + bzero).collect()
+            }));
+        } else {
+            return FitsData::FloatingPoint64(self.inner_read_data_force(|file, len| {
+                let mut buf = vec![0f64; len];
+                file.read_f64_into::<BigEndian>(&mut buf)
+                    .expect("Read array f64");
+                buf
+            }));
         }
     }
     /// Get data array stored in the [`Hdu`].
@@ -681,56 +854,10 @@ impl Hdu {
                 file.read_exact(&mut buf).expect("Read array");
                 buf.into_iter().map(|n| n as char).collect()
             })),
-            16 => {
-                self.read_bitpix16_data()
-
-                /* BEGIN TROZO QUE HAY QUE EXPANDIR */
-
-                /*
-                let blank = self.value_as_integer_number("BLANK");
-                FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
-                    let mut buf = vec![0i16; len];
-                    file.read_i16_into::<BigEndian>(&mut buf)
-                        .expect("Read array");
-                    if let Some(blank) = blank {
-                        let blank = blank as i16;
-                        buf.into_iter()
-                            .map(|n| if n == blank { None } else { Some(i32::from(n)) })
-                            .collect()
-                    } else {
-                        buf.into_iter().map(|n| Some(i32::from(n))).collect()
-                    }
-                }))
-                */
-                /* END TROZO QUE HAY QUE EXPANDIR */
-            }
-            32 => {
-                let blank = self.value_as_integer_number("BLANK");
-                FitsData::OptIntegersI32(self.inner_read_data_force(|file, len| {
-                    let mut buf = vec![0i32; len];
-                    file.read_i32_into::<BigEndian>(&mut buf)
-                        .expect("Read array");
-                    if let Some(blank) = blank {
-                        buf.into_iter()
-                            .map(|n| if n == blank { None } else { Some(n) })
-                            .collect()
-                    } else {
-                        buf.into_iter().map(Some).collect()
-                    }
-                }))
-            }
-            -32 => FitsData::FloatingPoint32(self.inner_read_data_force(|file, len| {
-                let mut buf = vec![0f32; len];
-                file.read_f32_into::<BigEndian>(&mut buf)
-                    .expect("Read array");
-                buf
-            })),
-            -64 => FitsData::FloatingPoint64(self.inner_read_data_force(|file, len| {
-                let mut buf = vec![0f64; len];
-                file.read_f64_into::<BigEndian>(&mut buf)
-                    .expect("Read array");
-                buf
-            })),
+            16 => self.read_16bit_data(),
+            32 => self.read_32bit_data(),
+            -32 => self.read_f32_data(),
+            -64 => self.read_f64_data(),
             _ => panic!("Unexpected value for BITPIX"),
         }
     }
