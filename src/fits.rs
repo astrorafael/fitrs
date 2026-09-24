@@ -57,13 +57,13 @@ pub struct Hdu {
 pub enum FitsData {
     Characters(FitsDataArray<char>),
     IntegersI16(FitsDataArray<i16>),
-    OptIntegersI16(FitsDataArray<Option<i16>>),
     IntegersU16(FitsDataArray<u16>),
-    OptIntegersU16(FitsDataArray<Option<u16>>),
     IntegersI32(FitsDataArray<i32>),
-    OptIntegersI32(FitsDataArray<Option<i32>>),
     IntegersU32(FitsDataArray<u32>),
-    OptIntegersU32(FitsDataArray<Option<u32>>),
+    OptIntegersI16(FitsDataArray<Option<i16>>), // support for BLANK keyword & pixel value
+    OptIntegersU16(FitsDataArray<Option<u16>>), // support for BLANK keyword & pixel value
+    OptIntegersI32(FitsDataArray<Option<i32>>), // support for BLANK keyword & pixel value
+    OptIntegersU32(FitsDataArray<Option<u32>>), // support for BLANK keyword & pixel value
     FloatingPoint32(FitsDataArray<f32>),
     FloatingPoint64(FitsDataArray<f64>),
 }
@@ -102,7 +102,7 @@ impl FitsDataArray<Option<i16>> {
             if let Some(n) = n {
                 data.write_i16::<BigEndian>(*n).unwrap();
             } else {
-                unimplemented!("Missing value not implemented for 16-bit integer arrays!");
+                unimplemented!("Missing value not implemented for i16 integer arrays!");
             }
         }
         data
@@ -116,7 +116,7 @@ impl FitsDataArray<Option<u16>> {
             if let Some(n) = n {
                 data.write_u16::<BigEndian>(*n).unwrap();
             } else {
-                unimplemented!("Missing value not implemented for unsigned 16-bit integer arrays!");
+                unimplemented!("Missing value not implemented for u16 integer arrays!");
             }
         }
         data
@@ -130,7 +130,7 @@ impl FitsDataArray<Option<i32>> {
             if let Some(n) = n {
                 data.write_i32::<BigEndian>(*n).unwrap();
             } else {
-                unimplemented!("Missing value not implemented for 32-bit integer arrays!");
+                unimplemented!("Missing value not implemented for i32 integer arrays!");
             }
         }
         data
@@ -144,7 +144,7 @@ impl FitsDataArray<Option<u32>> {
             if let Some(n) = n {
                 data.write_u32::<BigEndian>(*n).unwrap();
             } else {
-                unimplemented!("Missing value not implemented for unsigned 32-bit integer arrays!");
+                unimplemented!("Missing value not implemented for u32 integer arrays!");
             }
         }
         data
@@ -216,12 +216,12 @@ impl FitsData {
         match self {
             FitsData::Characters(chars) => chars.raw(),
             FitsData::IntegersI16(arr) => arr.raw(),
-            FitsData::OptIntegersI16(arr) => arr.raw(),
             FitsData::IntegersU16(arr) => arr.raw(),
-            FitsData::OptIntegersU16(arr) => arr.raw(),
             FitsData::IntegersI32(arr) => arr.raw(),
-            FitsData::OptIntegersI32(arr) => arr.raw(),
             FitsData::IntegersU32(arr) => arr.raw(),
+            FitsData::OptIntegersI16(arr) => arr.raw(),
+            FitsData::OptIntegersU16(arr) => arr.raw(),
+            FitsData::OptIntegersI32(arr) => arr.raw(),
             FitsData::OptIntegersU32(arr) => arr.raw(),
             FitsData::FloatingPoint32(arr) => arr.raw(),
             FitsData::FloatingPoint64(arr) => arr.raw(),
