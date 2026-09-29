@@ -41,12 +41,16 @@ impl FitsDataType for i16 {
     }
 }
 
+// normally the stored value would be stored = BSCALE*physycal - BZERO
+// However, to accmodate u16 pixeles, BSCALE = 1 and BZERO = 32768 cannnot be represented
+// in i16. We get the same effect by a wrapping_add with 32768 u16
+
 impl FitsDataType for u16 {
     fn new_fits_array(shape: &[usize], data: Vec<u16>) -> FitsData {
         let bzero = BZERO_U16 as u16;
         FitsData::IntegersU16(FitsDataArray {
             shape: Vec::from(shape),
-            data: data.into_iter().map(|px| px.wrapping_add(bzero)).collect(),
+            data: data.into_iter().map(|px| px.wrapping_add(bzero)).collect(), // trick
         })
     }
 
@@ -77,7 +81,7 @@ impl FitsDataType for u32 {
         let bzero = BZERO_U32 as u32;
         FitsData::IntegersU32(FitsDataArray {
             shape: Vec::from(shape),
-            data: data.into_iter().map(|px| px.wrapping_add(bzero)).collect(),
+            data: data.into_iter().map(|px| px.wrapping_add(bzero)).collect(), // trick
         })
     }
 
@@ -89,6 +93,10 @@ impl FitsDataType for u32 {
         Some(BZERO_U32)
     }
 }
+
+// For writting f32 and f64 pixels there is no need for automatic scaling of BZERO/BSCALE.
+// If needed by the domain field, the user must add BZERO/BSCALE to the header
+// and perform the scaling operation manually before saving.
 
 impl FitsDataType for f32 {
     fn new_fits_array(shape: &[usize], data: Vec<f32>) -> FitsData {
